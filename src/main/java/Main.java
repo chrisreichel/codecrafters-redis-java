@@ -109,7 +109,7 @@ public class Main {
                         out.write((":" + size + "\r\n").getBytes());
                     } else if (command.equals("BLPOP")) {
                         String key = elements[1];
-                        // elements[elements.length-1] is the timeout (0 = indefinite in this stage)
+                        double timeout = Double.parseDouble(elements[elements.length - 1]);
                         CompletableFuture<String[]> future = null;
                         String[] result = null;
                         synchronized (getLock(key)) {
@@ -123,7 +123,18 @@ public class Main {
                         }
                         if (future != null) {
                             try {
-                                result = future.get();
+                                if (timeout == 0) {
+                                    result = future.get();
+                                } else {
+                                    long timeoutMs = (long)(timeout * 1000);
+                                    result = future.get(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+                                }
+                            } catch (java.util.concurrent.TimeoutException e) {
+                                future.cancel(true);
+                                Queue<CompletableFuture<String[]>> waiters = blockedClients.get(key);
+                                if (waiters != null) waiters.remove(future);
+                                out.write("*-1\r\n".getBytes());
+                                continue;
                             } catch (InterruptedException | java.util.concurrent.ExecutionException e) {
                                 Thread.currentThread().interrupt();
                                 return;
