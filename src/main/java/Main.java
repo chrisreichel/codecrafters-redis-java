@@ -243,6 +243,42 @@ public class Main {
                         }
                         streamStore.computeIfAbsent(key, k -> new ArrayList<>()).add(entry);
                         out.write(("$" + id.length() + "\r\n" + id + "\r\n").getBytes());
+                    } else if (command.equals("XREAD")) {
+                        // XREAD STREAMS key id  (elements[1]="STREAMS", [2]=key, [3]=id)
+                        String key = elements[2];
+                        String startArg = elements[3];
+                        long startMs, startSeq;
+                        if (startArg.contains("-")) {
+                            String[] p = startArg.split("-", 2);
+                            startMs = Long.parseLong(p[0]); startSeq = Long.parseLong(p[1]);
+                        } else {
+                            startMs = Long.parseLong(startArg); startSeq = Long.MAX_VALUE;
+                        }
+                        List<String[]> xrStream = streamStore.get(key);
+                        List<String[]> xrResults = new ArrayList<>();
+                        if (xrStream != null) {
+                            for (String[] entry : xrStream) {
+                                String[] ip = entry[0].split("-", 2);
+                                long ms = Long.parseLong(ip[0]), seq = Long.parseLong(ip[1]);
+                                if (ms > startMs || (ms == startMs && seq > startSeq)) {
+                                    xrResults.add(entry);
+                                }
+                            }
+                        }
+                        StringBuilder sb = new StringBuilder();
+                        sb.append("*1\r\n*2\r\n");
+                        sb.append("$").append(key.length()).append("\r\n").append(key).append("\r\n");
+                        sb.append("*").append(xrResults.size()).append("\r\n");
+                        for (String[] entry : xrResults) {
+                            String entryId = entry[0];
+                            sb.append("*2\r\n");
+                            sb.append("$").append(entryId.length()).append("\r\n").append(entryId).append("\r\n");
+                            sb.append("*").append(entry.length - 1).append("\r\n");
+                            for (int i = 1; i < entry.length; i++) {
+                                sb.append("$").append(entry[i].length()).append("\r\n").append(entry[i]).append("\r\n");
+                            }
+                        }
+                        out.write(sb.toString().getBytes());
                     } else if (command.equals("XRANGE")) {
                         String key = elements[1];
                         String startArg = elements[2];
