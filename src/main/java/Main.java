@@ -3,12 +3,15 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class Main {
     record Entry(String value, long expiresAt) {}
     private static final Map<String, Entry> store = new ConcurrentHashMap<>();
+    private static final Map<String, List<String>> listStore = new ConcurrentHashMap<>();
     public static void main(String[] args) {
         System.out.println("Logs from your program will appear here!");
 
@@ -58,6 +61,13 @@ public class Main {
                         }
                         store.put(key, new Entry(value, expiresAt));
                         out.write("+OK\r\n".getBytes());
+                    } else if (command.equals("RPUSH")) {
+                        String key = elements[1];
+                        List<String> list = listStore.computeIfAbsent(key, k -> new ArrayList<>());
+                        for (int i = 2; i < elements.length; i++) {
+                            list.add(elements[i]);
+                        }
+                        out.write((":" + list.size() + "\r\n").getBytes());
                     } else if (command.equals("GET")) {
                         String key = elements[1];
                         Entry entry = store.get(key);
