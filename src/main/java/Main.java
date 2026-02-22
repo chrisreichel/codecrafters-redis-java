@@ -260,7 +260,15 @@ public class Main {
                         for (int s = 0; s < numStreams; s++) {
                             xrKeys[s] = elements[streamsIdx + 1 + s];
                             String startArg = elements[streamsIdx + 1 + numStreams + s];
-                            if (startArg.contains("-")) {
+                            if (startArg.equals("$")) {
+                                List<String[]> cur = streamStore.get(xrKeys[s]);
+                                if (cur != null && !cur.isEmpty()) {
+                                    String[] lp = cur.get(cur.size() - 1)[0].split("-", 2);
+                                    xrStartMs[s] = Long.parseLong(lp[0]); xrStartSeq[s] = Long.parseLong(lp[1]);
+                                } else {
+                                    xrStartMs[s] = 0; xrStartSeq[s] = -1;
+                                }
+                            } else if (startArg.contains("-")) {
                                 String[] p = startArg.split("-", 2);
                                 xrStartMs[s] = Long.parseLong(p[0]); xrStartSeq[s] = Long.parseLong(p[1]);
                             } else {
