@@ -455,6 +455,21 @@ public class Main {
                             type = "none";
                         }
                         out.write(("+" + type + "\r\n").getBytes());
+                    } else if (command.equals("INCR")) {
+                        String key = elements[1];
+                        Entry entry = store.get(key);
+                        long val = 0;
+                        if (entry != null && (entry.expiresAt() == -1 || System.currentTimeMillis() <= entry.expiresAt())) {
+                            try {
+                                val = Long.parseLong(entry.value());
+                            } catch (NumberFormatException e) {
+                                out.write("-ERR value is not an integer or out of range\r\n".getBytes());
+                                continue;
+                            }
+                        }
+                        val++;
+                        store.put(key, new Entry(String.valueOf(val), entry != null ? entry.expiresAt() : -1));
+                        out.write((":" + val + "\r\n").getBytes());
                     } else if (command.equals("GET")) {
                         String key = elements[1];
                         Entry entry = store.get(key);
