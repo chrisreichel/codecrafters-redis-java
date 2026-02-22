@@ -243,6 +243,54 @@ public class Main {
                         }
                         streamStore.computeIfAbsent(key, k -> new ArrayList<>()).add(entry);
                         out.write(("$" + id.length() + "\r\n" + id + "\r\n").getBytes());
+                    } else if (command.equals("XRANGE")) {
+                        String key = elements[1];
+                        String startArg = elements[2];
+                        String endArg = elements[3];
+                        // Parse start
+                        long startMs, startSeq;
+                        if (startArg.equals("-")) {
+                            startMs = 0; startSeq = 0;
+                        } else if (startArg.contains("-")) {
+                            String[] p = startArg.split("-", 2);
+                            startMs = Long.parseLong(p[0]); startSeq = Long.parseLong(p[1]);
+                        } else {
+                            startMs = Long.parseLong(startArg); startSeq = 0;
+                        }
+                        // Parse end
+                        long endMs, endSeq;
+                        if (endArg.equals("+")) {
+                            endMs = Long.MAX_VALUE; endSeq = Long.MAX_VALUE;
+                        } else if (endArg.contains("-")) {
+                            String[] p = endArg.split("-", 2);
+                            endMs = Long.parseLong(p[0]); endSeq = Long.parseLong(p[1]);
+                        } else {
+                            endMs = Long.parseLong(endArg); endSeq = Long.MAX_VALUE;
+                        }
+                        List<String[]> stream = streamStore.get(key);
+                        List<String[]> results = new ArrayList<>();
+                        if (stream != null) {
+                            for (String[] entry : stream) {
+                                String[] ip = entry[0].split("-", 2);
+                                long ms = Long.parseLong(ip[0]), seq = Long.parseLong(ip[1]);
+                                if ((ms > startMs || (ms == startMs && seq >= startSeq)) &&
+                                    (ms < endMs || (ms == endMs && seq <= endSeq))) {
+                                    results.add(entry);
+                                }
+                            }
+                        }
+                        StringBuilder sb = new StringBuilder("*" + results.size() + "\r\n");
+                        for (String[] entry : results) {
+                            String entryId = entry[0];
+                            int numFields = entry.length - 1;
+                            sb.append("*2\r\n");
+                            sb.append("$").append(entryId.length()).append("\r\n").append(entryId).append("\r\n");
+                            sb.append("*").append(numFields).append("\r\n");
+                            for (int i = 1; i < entry.length; i++) {
+                                sb.append("$").append(entry[i].length()).append("\r\n").append(entry[i]).append("\r\n");
+                            }
+                        }
+                        out.write(sb.toString().getBytes());
                     } else if (command.equals("TYPE")) {
                         String key = elements[1];
                         String type;
