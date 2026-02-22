@@ -197,6 +197,17 @@ public class Main {
                                 out.write(sb.toString().getBytes());
                             }
                         }
+                    } else if (command.equals("TYPE")) {
+                        String key = elements[1];
+                        String type;
+                        if (store.containsKey(key)) {
+                            type = "string";
+                        } else if (listStore.containsKey(key)) {
+                            type = "list";
+                        } else {
+                            type = "none";
+                        }
+                        out.write(("+" + type + "\r\n").getBytes());
                     } else if (command.equals("GET")) {
                         String key = elements[1];
                         Entry entry = store.get(key);
