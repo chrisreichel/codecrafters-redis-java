@@ -68,6 +68,22 @@ public class Main {
                             list.add(elements[i]);
                         }
                         out.write((":" + list.size() + "\r\n").getBytes());
+                    } else if (command.equals("LRANGE")) {
+                        String key = elements[1];
+                        int start = Integer.parseInt(elements[2]);
+                        int stop = Integer.parseInt(elements[3]);
+                        List<String> list = listStore.get(key);
+                        if (list == null || start >= list.size() || start > stop) {
+                            out.write("*0\r\n".getBytes());
+                        } else {
+                            int end = Math.min(stop, list.size() - 1);
+                            List<String> sub = list.subList(start, end + 1);
+                            StringBuilder sb = new StringBuilder("*" + sub.size() + "\r\n");
+                            for (String elem : sub) {
+                                sb.append("$").append(elem.length()).append("\r\n").append(elem).append("\r\n");
+                            }
+                            out.write(sb.toString().getBytes());
+                        }
                     } else if (command.equals("GET")) {
                         String key = elements[1];
                         Entry entry = store.get(key);
