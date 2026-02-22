@@ -6,12 +6,34 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class Main {
     record Entry(String value, long expiresAt) {}
     private static final Map<String, Entry> store = new ConcurrentHashMap<>();
     private static final Map<String, List<String>> listStore = new ConcurrentHashMap<>();
+    private static final Map<String, Object> listLocks = new ConcurrentHashMap<>();
+    private static final Map<String, Queue<CompletableFuture<String[]>>> blockedClients = new ConcurrentHashMap<>();
+
+    private static Object getLock(String key) {
+        return listLocks.computeIfAbsent(key, k -> new Object());
+    }
+
+    // Must be called inside synchronized(getLock(key))
+    private static void notifyBlockedClient(String key, List<String> list) {
+        Queue<CompletableFuture<String[]>> waiters = blockedClients.get(key);
+        if (waiters != null && !list.isEmpty()) {
+            CompletableFuture<String[]> waiter = waiters.poll();
+            if (waiter != null) {
+                String val = list.remove(0);
+                waiter.complete(new String[]{key, val});
+            }
+        }
+    }
+
     public static void main(String[] args) {
         System.out.println("Logs from your program will appear here!");
 
@@ -63,18 +85,53 @@ public class Main {
                         out.write("+OK\r\n".getBytes());
                     } else if (command.equals("RPUSH")) {
                         String key = elements[1];
-                        List<String> list = listStore.computeIfAbsent(key, k -> new ArrayList<>());
-                        for (int i = 2; i < elements.length; i++) {
-                            list.add(elements[i]);
+                        int size;
+                        synchronized (getLock(key)) {
+                            List<String> list = listStore.computeIfAbsent(key, k -> new ArrayList<>());
+                            for (int i = 2; i < elements.length; i++) {
+                                list.add(elements[i]);
+                            }
+                            size = list.size();
+                            notifyBlockedClient(key, list);
                         }
-                        out.write((":" + list.size() + "\r\n").getBytes());
+                        out.write((":" + size + "\r\n").getBytes());
                     } else if (command.equals("LPUSH")) {
                         String key = elements[1];
-                        List<String> list = listStore.computeIfAbsent(key, k -> new ArrayList<>());
-                        for (int i = 2; i < elements.length; i++) {
-                            list.add(0, elements[i]);
+                        int size;
+                        synchronized (getLock(key)) {
+                            List<String> list = listStore.computeIfAbsent(key, k -> new ArrayList<>());
+                            for (int i = 2; i < elements.length; i++) {
+                                list.add(0, elements[i]);
+                            }
+                            size = list.size();
+                            notifyBlockedClient(key, list);
                         }
-                        out.write((":" + list.size() + "\r\n").getBytes());
+                        out.write((":" + size + "\r\n").getBytes());
+                    } else if (command.equals("BLPOP")) {
+                        String key = elements[1];
+                        // elements[elements.length-1] is the timeout (0 = indefinite in this stage)
+                        CompletableFuture<String[]> future = null;
+                        String[] result = null;
+                        synchronized (getLock(key)) {
+                            List<String> list = listStore.get(key);
+                            if (list != null && !list.isEmpty()) {
+                                result = new String[]{key, list.remove(0)};
+                            } else {
+                                future = new CompletableFuture<>();
+                                blockedClients.computeIfAbsent(key, k -> new ConcurrentLinkedQueue<>()).offer(future);
+                            }
+                        }
+                        if (future != null) {
+                            try {
+                                result = future.get();
+                            } catch (InterruptedException | java.util.concurrent.ExecutionException e) {
+                                Thread.currentThread().interrupt();
+                                return;
+                            }
+                        }
+                        String listKey = result[0];
+                        String val = result[1];
+                        out.write(("*2\r\n$" + listKey.length() + "\r\n" + listKey + "\r\n$" + val.length() + "\r\n" + val + "\r\n").getBytes());
                     } else if (command.equals("LPOP")) {
                         String key = elements[1];
                         List<String> list = listStore.get(key);
@@ -120,13 +177,13 @@ public class Main {
                             if (start >= size || start > stop) {
                                 out.write("*0\r\n".getBytes());
                             } else {
-                            int end = Math.min(stop, size - 1);
-                            List<String> sub = list.subList(start, end + 1);
-                            StringBuilder sb = new StringBuilder("*" + sub.size() + "\r\n");
-                            for (String elem : sub) {
-                                sb.append("$").append(elem.length()).append("\r\n").append(elem).append("\r\n");
-                            }
-                            out.write(sb.toString().getBytes());
+                                int end = Math.min(stop, size - 1);
+                                List<String> sub = list.subList(start, end + 1);
+                                StringBuilder sb = new StringBuilder("*" + sub.size() + "\r\n");
+                                for (String elem : sub) {
+                                    sb.append("$").append(elem.length()).append("\r\n").append(elem).append("\r\n");
+                                }
+                                out.write(sb.toString().getBytes());
                             }
                         }
                     } else if (command.equals("GET")) {
