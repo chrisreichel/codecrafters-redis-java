@@ -201,7 +201,24 @@ public class Main {
                     } else if (command.equals("XADD")) {
                         String key = elements[1];
                         String id = elements[2];
-                        // elements[3..] are key-value pairs stored alongside the id
+                        String[] idParts = id.split("-");
+                        long ms = Long.parseLong(idParts[0]);
+                        long seq = Long.parseLong(idParts[1]);
+                        if (ms == 0 && seq == 0) {
+                            out.write("-ERR The ID specified in XADD must be greater than 0-0\r\n".getBytes());
+                            continue;
+                        }
+                        List<String[]> stream = streamStore.get(key);
+                        if (stream != null && !stream.isEmpty()) {
+                            String[] lastEntry = stream.get(stream.size() - 1);
+                            String[] lastParts = lastEntry[0].split("-");
+                            long lastMs = Long.parseLong(lastParts[0]);
+                            long lastSeq = Long.parseLong(lastParts[1]);
+                            if (ms < lastMs || (ms == lastMs && seq <= lastSeq)) {
+                                out.write("-ERR The ID specified in XADD is equal or smaller than the target stream top item\r\n".getBytes());
+                                continue;
+                            }
+                        }
                         String[] entry = new String[elements.length - 2];
                         entry[0] = id;
                         for (int i = 3; i < elements.length; i++) {
