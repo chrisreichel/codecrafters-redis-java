@@ -7,7 +7,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class Main {
-    private static final Map<String, String> store = new ConcurrentHashMap<>();
+    record Entry(String value, long expiresAt) {}
+    private static final Map<String, Entry> store = new ConcurrentHashMap<>();
     public static void main(String[] args) {
         System.out.println("Logs from your program will appear here!");
 
@@ -47,14 +48,23 @@ public class Main {
                     } else if (command.equals("SET")) {
                         String key = elements[1];
                         String value = elements[2];
-                        store.put(key, value);
+                        long expiresAt = -1;
+                        for (int i = 3; i < elements.length - 1; i++) {
+                            if (elements[i].equalsIgnoreCase("PX")) {
+                                expiresAt = System.currentTimeMillis() + Long.parseLong(elements[i + 1]);
+                            } else if (elements[i].equalsIgnoreCase("EX")) {
+                                expiresAt = System.currentTimeMillis() + Long.parseLong(elements[i + 1]) * 1000;
+                            }
+                        }
+                        store.put(key, new Entry(value, expiresAt));
                         out.write("+OK\r\n".getBytes());
                     } else if (command.equals("GET")) {
                         String key = elements[1];
-                        String value = store.get(key);
-                        if (value == null) {
+                        Entry entry = store.get(key);
+                        if (entry == null || (entry.expiresAt() != -1 && System.currentTimeMillis() > entry.expiresAt())) {
                             out.write("$-1\r\n".getBytes());
                         } else {
+                            String value = entry.value();
                             out.write(("$" + value.length() + "\r\n" + value + "\r\n").getBytes());
                         }
                     }
