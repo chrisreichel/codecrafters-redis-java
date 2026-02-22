@@ -14,7 +14,7 @@ public class Main {
 
             while (true) {
                 Socket clientSocket = serverSocket.accept();
-                new Thread(() -> handleClient(clientSocket)).start();
+                Thread.startVirtualThread(() -> handleClient(clientSocket));
             }
         } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
