@@ -203,15 +203,29 @@ public class Main {
                         String id = elements[2];
                         String[] idParts = id.split("-");
                         long ms = Long.parseLong(idParts[0]);
-                        long seq = Long.parseLong(idParts[1]);
-                        if (ms == 0 && seq == 0) {
-                            out.write("-ERR The ID specified in XADD must be greater than 0-0\r\n".getBytes());
-                            continue;
+                        long seq;
+                        if (idParts[1].equals("*")) {
+                            // Auto-generate sequence number
+                            List<String[]> stream = streamStore.get(key);
+                            long lastSeqForMs = -1;
+                            if (stream != null && !stream.isEmpty()) {
+                                String[] lastParts = stream.get(stream.size() - 1)[0].split("-");
+                                if (Long.parseLong(lastParts[0]) == ms) {
+                                    lastSeqForMs = Long.parseLong(lastParts[1]);
+                                }
+                            }
+                            seq = (lastSeqForMs == -1) ? (ms == 0 ? 1 : 0) : lastSeqForMs + 1;
+                            id = ms + "-" + seq;
+                        } else {
+                            seq = Long.parseLong(idParts[1]);
+                            if (ms == 0 && seq == 0) {
+                                out.write("-ERR The ID specified in XADD must be greater than 0-0\r\n".getBytes());
+                                continue;
+                            }
                         }
                         List<String[]> stream = streamStore.get(key);
                         if (stream != null && !stream.isEmpty()) {
-                            String[] lastEntry = stream.get(stream.size() - 1);
-                            String[] lastParts = lastEntry[0].split("-");
+                            String[] lastParts = stream.get(stream.size() - 1)[0].split("-");
                             long lastMs = Long.parseLong(lastParts[0]);
                             long lastSeq = Long.parseLong(lastParts[1]);
                             if (ms < lastMs || (ms == lastMs && seq <= lastSeq)) {
