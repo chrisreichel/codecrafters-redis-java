@@ -75,6 +75,15 @@ public class Main {
                             list.add(0, elements[i]);
                         }
                         out.write((":" + list.size() + "\r\n").getBytes());
+                    } else if (command.equals("LPOP")) {
+                        String key = elements[1];
+                        List<String> list = listStore.get(key);
+                        if (list == null || list.isEmpty()) {
+                            out.write("$-1\r\n".getBytes());
+                        } else {
+                            String val = list.remove(0);
+                            out.write(("$" + val.length() + "\r\n" + val + "\r\n").getBytes());
+                        }
                     } else if (command.equals("LLEN")) {
                         String key = elements[1];
                         List<String> list = listStore.get(key);
