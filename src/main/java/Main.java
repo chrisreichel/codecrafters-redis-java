@@ -201,6 +201,9 @@ public class Main {
                     } else if (command.equals("XADD")) {
                         String key = elements[1];
                         String id = elements[2];
+                        if (id.equals("*")) {
+                            id = System.currentTimeMillis() + "-*";
+                        }
                         String[] idParts = id.split("-");
                         long ms = Long.parseLong(idParts[0]);
                         long seq;
