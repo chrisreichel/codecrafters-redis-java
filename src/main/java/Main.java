@@ -56,6 +56,7 @@ public class Main {
         try {
             BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
             var out = clientSocket.getOutputStream();
+            boolean inMulti = false;
             String line;
             while ((line = reader.readLine()) != null) {
                 if (line.startsWith("*")) {
@@ -456,7 +457,12 @@ public class Main {
                         }
                         out.write(("+" + type + "\r\n").getBytes());
                     } else if (command.equals("MULTI")) {
+                        inMulti = true;
                         out.write("+OK\r\n".getBytes());
+                    } else if (command.equals("EXEC")) {
+                        if (!inMulti) {
+                            out.write("-ERR EXEC without MULTI\r\n".getBytes());
+                        }
                     } else if (command.equals("INCR")) {
                         String key = elements[1];
                         Entry entry = store.get(key);
