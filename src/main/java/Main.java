@@ -70,19 +70,26 @@ public class Main {
                         out.write((":" + list.size() + "\r\n").getBytes());
                     } else if (command.equals("LRANGE")) {
                         String key = elements[1];
-                        int start = Integer.parseInt(elements[2]);
-                        int stop = Integer.parseInt(elements[3]);
                         List<String> list = listStore.get(key);
-                        if (list == null || start >= list.size() || start > stop) {
+                        if (list == null) {
                             out.write("*0\r\n".getBytes());
                         } else {
-                            int end = Math.min(stop, list.size() - 1);
+                            int size = list.size();
+                            int start = Integer.parseInt(elements[2]);
+                            int stop = Integer.parseInt(elements[3]);
+                            if (start < 0) start = Math.max(0, size + start);
+                            if (stop < 0) stop = size + stop;
+                            if (start >= size || start > stop) {
+                                out.write("*0\r\n".getBytes());
+                            } else {
+                            int end = Math.min(stop, size - 1);
                             List<String> sub = list.subList(start, end + 1);
                             StringBuilder sb = new StringBuilder("*" + sub.size() + "\r\n");
                             for (String elem : sub) {
                                 sb.append("$").append(elem.length()).append("\r\n").append(elem).append("\r\n");
                             }
                             out.write(sb.toString().getBytes());
+                            }
                         }
                     } else if (command.equals("GET")) {
                         String key = elements[1];
