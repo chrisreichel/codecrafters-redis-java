@@ -78,11 +78,28 @@ public class Main {
                     } else if (command.equals("LPOP")) {
                         String key = elements[1];
                         List<String> list = listStore.get(key);
-                        if (list == null || list.isEmpty()) {
-                            out.write("$-1\r\n".getBytes());
+                        if (elements.length == 2) {
+                            // No count argument — return single bulk string
+                            if (list == null || list.isEmpty()) {
+                                out.write("$-1\r\n".getBytes());
+                            } else {
+                                String val = list.remove(0);
+                                out.write(("$" + val.length() + "\r\n" + val + "\r\n").getBytes());
+                            }
                         } else {
-                            String val = list.remove(0);
-                            out.write(("$" + val.length() + "\r\n" + val + "\r\n").getBytes());
+                            // Count argument provided — return array
+                            int count = Integer.parseInt(elements[2]);
+                            if (list == null || list.isEmpty()) {
+                                out.write("*0\r\n".getBytes());
+                            } else {
+                                int n = Math.min(count, list.size());
+                                StringBuilder sb = new StringBuilder("*" + n + "\r\n");
+                                for (int i = 0; i < n; i++) {
+                                    String val = list.remove(0);
+                                    sb.append("$").append(val.length()).append("\r\n").append(val).append("\r\n");
+                                }
+                                out.write(sb.toString().getBytes());
+                            }
                         }
                     } else if (command.equals("LLEN")) {
                         String key = elements[1];
