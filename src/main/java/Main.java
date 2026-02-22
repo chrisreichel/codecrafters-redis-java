@@ -455,6 +455,8 @@ public class Main {
                             type = "none";
                         }
                         out.write(("+" + type + "\r\n").getBytes());
+                    } else if (command.equals("MULTI")) {
+                        out.write("+OK\r\n".getBytes());
                     } else if (command.equals("INCR")) {
                         String key = elements[1];
                         Entry entry = store.get(key);
