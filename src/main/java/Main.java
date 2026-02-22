@@ -11,8 +11,18 @@ public class Main {
         int port = 6379;
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             serverSocket.setReuseAddress(true);
-            Socket clientSocket = serverSocket.accept();
 
+            while (true) {
+                Socket clientSocket = serverSocket.accept();
+                new Thread(() -> handleClient(clientSocket)).start();
+            }
+        } catch (IOException e) {
+            System.out.println("IOException: " + e.getMessage());
+        }
+    }
+
+    private static void handleClient(Socket clientSocket) {
+        try {
             BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
             String line;
             while ((line = reader.readLine()) != null) {
@@ -22,6 +32,12 @@ public class Main {
             }
         } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
+        } finally {
+            try {
+                clientSocket.close();
+            } catch (IOException e) {
+                System.out.println("IOException: " + e.getMessage());
+            }
         }
     }
 }
