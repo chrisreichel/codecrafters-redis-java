@@ -15,6 +15,7 @@ public class Main {
     record Entry(String value, long expiresAt) {}
     private static final Map<String, Entry> store = new ConcurrentHashMap<>();
     private static final Map<String, List<String>> listStore = new ConcurrentHashMap<>();
+    private static final Map<String, List<String[]>> streamStore = new ConcurrentHashMap<>();
     private static final Map<String, Object> listLocks = new ConcurrentHashMap<>();
     private static final Map<String, Queue<CompletableFuture<String[]>>> blockedClients = new ConcurrentHashMap<>();
 
@@ -197,6 +198,17 @@ public class Main {
                                 out.write(sb.toString().getBytes());
                             }
                         }
+                    } else if (command.equals("XADD")) {
+                        String key = elements[1];
+                        String id = elements[2];
+                        // elements[3..] are key-value pairs stored alongside the id
+                        String[] entry = new String[elements.length - 2];
+                        entry[0] = id;
+                        for (int i = 3; i < elements.length; i++) {
+                            entry[i - 2] = elements[i];
+                        }
+                        streamStore.computeIfAbsent(key, k -> new ArrayList<>()).add(entry);
+                        out.write(("$" + id.length() + "\r\n" + id + "\r\n").getBytes());
                     } else if (command.equals("TYPE")) {
                         String key = elements[1];
                         String type;
@@ -204,6 +216,8 @@ public class Main {
                             type = "string";
                         } else if (listStore.containsKey(key)) {
                             type = "list";
+                        } else if (streamStore.containsKey(key)) {
+                            type = "stream";
                         } else {
                             type = "none";
                         }
