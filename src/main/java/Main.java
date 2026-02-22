@@ -462,6 +462,9 @@ public class Main {
                     } else if (command.equals("EXEC")) {
                         if (!inMulti) {
                             out.write("-ERR EXEC without MULTI\r\n".getBytes());
+                        } else {
+                            inMulti = false;
+                            out.write("*0\r\n".getBytes());
                         }
                     } else if (command.equals("INCR")) {
                         String key = elements[1];
