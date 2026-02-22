@@ -68,6 +68,13 @@ public class Main {
                             list.add(elements[i]);
                         }
                         out.write((":" + list.size() + "\r\n").getBytes());
+                    } else if (command.equals("LPUSH")) {
+                        String key = elements[1];
+                        List<String> list = listStore.computeIfAbsent(key, k -> new ArrayList<>());
+                        for (int i = 2; i < elements.length; i++) {
+                            list.add(0, elements[i]);
+                        }
+                        out.write((":" + list.size() + "\r\n").getBytes());
                     } else if (command.equals("LRANGE")) {
                         String key = elements[1];
                         List<String> list = listStore.get(key);
