@@ -18,6 +18,7 @@ public class Main {
     private static final Map<String, List<String[]>> streamStore = new ConcurrentHashMap<>();
     private static final Map<String, Object> listLocks = new ConcurrentHashMap<>();
     private static final Map<String, Queue<CompletableFuture<String[]>>> blockedClients = new ConcurrentHashMap<>();
+    private static final Map<String, Queue<CompletableFuture<String[]>>> streamBlockedClients = new ConcurrentHashMap<>();
 
     private static Object getLock(String key) {
         return listLocks.computeIfAbsent(key, k -> new Object());
@@ -242,47 +243,149 @@ public class Main {
                             entry[i - 2] = elements[i];
                         }
                         streamStore.computeIfAbsent(key, k -> new ArrayList<>()).add(entry);
+                        Queue<CompletableFuture<String[]>> xrWaiters = streamBlockedClients.get(key);
+                        if (xrWaiters != null) {
+                            CompletableFuture<String[]> xrWaiter = xrWaiters.poll();
+                            if (xrWaiter != null) xrWaiter.complete(entry);
+                        }
                         out.write(("$" + id.length() + "\r\n" + id + "\r\n").getBytes());
                     } else if (command.equals("XREAD")) {
-                        // XREAD STREAMS key1 key2 ... id1 id2 ...
-                        int numStreams = (elements.length - 2) / 2;
-                        StringBuilder sb = new StringBuilder();
-                        sb.append("*").append(numStreams).append("\r\n");
+                        boolean isBlock = elements[1].equalsIgnoreCase("BLOCK");
+                        int streamsIdx = isBlock ? 3 : 1; // index of "STREAMS" keyword
+                        long blockTimeoutMs = isBlock ? Long.parseLong(elements[2]) : -1;
+                        int numStreams = (elements.length - streamsIdx - 1) / 2;
+                        String[] xrKeys = new String[numStreams];
+                        long[] xrStartMs = new long[numStreams];
+                        long[] xrStartSeq = new long[numStreams];
                         for (int s = 0; s < numStreams; s++) {
-                            String key = elements[2 + s];
-                            String startArg = elements[2 + numStreams + s];
-                            long startMs, startSeq;
+                            xrKeys[s] = elements[streamsIdx + 1 + s];
+                            String startArg = elements[streamsIdx + 1 + numStreams + s];
                             if (startArg.contains("-")) {
                                 String[] p = startArg.split("-", 2);
-                                startMs = Long.parseLong(p[0]); startSeq = Long.parseLong(p[1]);
+                                xrStartMs[s] = Long.parseLong(p[0]); xrStartSeq[s] = Long.parseLong(p[1]);
                             } else {
-                                startMs = Long.parseLong(startArg); startSeq = Long.MAX_VALUE;
+                                xrStartMs[s] = Long.parseLong(startArg); xrStartSeq[s] = Long.MAX_VALUE;
                             }
-                            List<String[]> xrStream = streamStore.get(key);
-                            List<String[]> xrResults = new ArrayList<>();
-                            if (xrStream != null) {
-                                for (String[] entry : xrStream) {
-                                    String[] ip = entry[0].split("-", 2);
-                                    long ms = Long.parseLong(ip[0]), seq = Long.parseLong(ip[1]);
-                                    if (ms > startMs || (ms == startMs && seq > startSeq)) {
-                                        xrResults.add(entry);
+                        }
+                        if (!isBlock) {
+                            StringBuilder sb = new StringBuilder();
+                            sb.append("*").append(numStreams).append("\r\n");
+                            for (int s = 0; s < numStreams; s++) {
+                                List<String[]> xrStream = streamStore.get(xrKeys[s]);
+                                List<String[]> xrResults = new ArrayList<>();
+                                if (xrStream != null) {
+                                    for (String[] entry : xrStream) {
+                                        String[] ip = entry[0].split("-", 2);
+                                        long ms = Long.parseLong(ip[0]), seq = Long.parseLong(ip[1]);
+                                        if (ms > xrStartMs[s] || (ms == xrStartMs[s] && seq > xrStartSeq[s])) xrResults.add(entry);
                                     }
                                 }
-                            }
-                            sb.append("*2\r\n");
-                            sb.append("$").append(key.length()).append("\r\n").append(key).append("\r\n");
-                            sb.append("*").append(xrResults.size()).append("\r\n");
-                            for (String[] entry : xrResults) {
-                                String entryId = entry[0];
                                 sb.append("*2\r\n");
-                                sb.append("$").append(entryId.length()).append("\r\n").append(entryId).append("\r\n");
-                                sb.append("*").append(entry.length - 1).append("\r\n");
-                                for (int i = 1; i < entry.length; i++) {
-                                    sb.append("$").append(entry[i].length()).append("\r\n").append(entry[i]).append("\r\n");
+                                sb.append("$").append(xrKeys[s].length()).append("\r\n").append(xrKeys[s]).append("\r\n");
+                                sb.append("*").append(xrResults.size()).append("\r\n");
+                                for (String[] entry : xrResults) {
+                                    String entryId = entry[0];
+                                    sb.append("*2\r\n");
+                                    sb.append("$").append(entryId.length()).append("\r\n").append(entryId).append("\r\n");
+                                    sb.append("*").append(entry.length - 1).append("\r\n");
+                                    for (int i = 1; i < entry.length; i++) sb.append("$").append(entry[i].length()).append("\r\n").append(entry[i]).append("\r\n");
+                                }
+                            }
+                            out.write(sb.toString().getBytes());
+                        } else {
+                            // Blocking XREAD: check for immediate results first
+                            @SuppressWarnings("unchecked")
+                            List<String[]>[] immediateResults = new ArrayList[numStreams];
+                            boolean hasImmediate = false;
+                            for (int s = 0; s < numStreams; s++) {
+                                immediateResults[s] = new ArrayList<>();
+                                List<String[]> xrStream = streamStore.get(xrKeys[s]);
+                                if (xrStream != null) {
+                                    for (String[] entry : xrStream) {
+                                        String[] ip = entry[0].split("-", 2);
+                                        long ms = Long.parseLong(ip[0]), seq = Long.parseLong(ip[1]);
+                                        if (ms > xrStartMs[s] || (ms == xrStartMs[s] && seq > xrStartSeq[s])) immediateResults[s].add(entry);
+                                    }
+                                }
+                                if (!immediateResults[s].isEmpty()) hasImmediate = true;
+                            }
+                            if (hasImmediate) {
+                                StringBuilder sb = new StringBuilder();
+                                List<Integer> nonEmpty = new ArrayList<>();
+                                for (int s = 0; s < numStreams; s++) if (!immediateResults[s].isEmpty()) nonEmpty.add(s);
+                                sb.append("*").append(nonEmpty.size()).append("\r\n");
+                                for (int idx : nonEmpty) {
+                                    sb.append("*2\r\n");
+                                    sb.append("$").append(xrKeys[idx].length()).append("\r\n").append(xrKeys[idx]).append("\r\n");
+                                    sb.append("*").append(immediateResults[idx].size()).append("\r\n");
+                                    for (String[] entry : immediateResults[idx]) {
+                                        String entryId = entry[0];
+                                        sb.append("*2\r\n");
+                                        sb.append("$").append(entryId.length()).append("\r\n").append(entryId).append("\r\n");
+                                        sb.append("*").append(entry.length - 1).append("\r\n");
+                                        for (int i = 1; i < entry.length; i++) sb.append("$").append(entry[i].length()).append("\r\n").append(entry[i]).append("\r\n");
+                                    }
+                                }
+                                out.write(sb.toString().getBytes());
+                            } else {
+                                // Block: register a future for each stream key
+                                @SuppressWarnings("unchecked")
+                                CompletableFuture<String[]>[] futures = new CompletableFuture[numStreams];
+                                for (int s = 0; s < numStreams; s++) {
+                                    futures[s] = new CompletableFuture<>();
+                                    streamBlockedClients.computeIfAbsent(xrKeys[s], k -> new ConcurrentLinkedQueue<>()).offer(futures[s]);
+                                }
+                                CompletableFuture<Object> anyFuture = CompletableFuture.anyOf(futures);
+                                try {
+                                    if (blockTimeoutMs == 0) {
+                                        anyFuture.get();
+                                    } else {
+                                        anyFuture.get(blockTimeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+                                    }
+                                    String resultKey = null;
+                                    String[] resultEntry = null;
+                                    for (int s = 0; s < numStreams; s++) {
+                                        if (futures[s].isDone() && !futures[s].isCancelled()) {
+                                            resultKey = xrKeys[s];
+                                            resultEntry = futures[s].get();
+                                            break;
+                                        }
+                                    }
+                                    for (int s = 0; s < numStreams; s++) {
+                                        if (!futures[s].isDone()) {
+                                            futures[s].cancel(true);
+                                            Queue<CompletableFuture<String[]>> q = streamBlockedClients.get(xrKeys[s]);
+                                            if (q != null) q.remove(futures[s]);
+                                        }
+                                    }
+                                    if (resultKey != null && resultEntry != null) {
+                                        StringBuilder sb = new StringBuilder();
+                                        sb.append("*1\r\n*2\r\n");
+                                        sb.append("$").append(resultKey.length()).append("\r\n").append(resultKey).append("\r\n");
+                                        sb.append("*1\r\n");
+                                        String entryId = resultEntry[0];
+                                        sb.append("*2\r\n");
+                                        sb.append("$").append(entryId.length()).append("\r\n").append(entryId).append("\r\n");
+                                        sb.append("*").append(resultEntry.length - 1).append("\r\n");
+                                        for (int i = 1; i < resultEntry.length; i++) sb.append("$").append(resultEntry[i].length()).append("\r\n").append(resultEntry[i]).append("\r\n");
+                                        out.write(sb.toString().getBytes());
+                                    } else {
+                                        out.write("*-1\r\n".getBytes());
+                                    }
+                                } catch (java.util.concurrent.TimeoutException e) {
+                                    for (int s = 0; s < numStreams; s++) {
+                                        futures[s].cancel(true);
+                                        Queue<CompletableFuture<String[]>> q = streamBlockedClients.get(xrKeys[s]);
+                                        if (q != null) q.remove(futures[s]);
+                                    }
+                                    out.write("*-1\r\n".getBytes());
+                                    continue;
+                                } catch (InterruptedException | java.util.concurrent.ExecutionException e) {
+                                    Thread.currentThread().interrupt();
+                                    return;
                                 }
                             }
                         }
-                        out.write(sb.toString().getBytes());
                     } else if (command.equals("XRANGE")) {
                         String key = elements[1];
                         String startArg = elements[2];
