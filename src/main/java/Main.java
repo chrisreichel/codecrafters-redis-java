@@ -75,6 +75,11 @@ public class Main {
                             list.add(0, elements[i]);
                         }
                         out.write((":" + list.size() + "\r\n").getBytes());
+                    } else if (command.equals("LLEN")) {
+                        String key = elements[1];
+                        List<String> list = listStore.get(key);
+                        int len = (list == null) ? 0 : list.size();
+                        out.write((":" + len + "\r\n").getBytes());
                     } else if (command.equals("LRANGE")) {
                         String key = elements[1];
                         List<String> list = listStore.get(key);
