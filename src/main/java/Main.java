@@ -24,10 +24,24 @@ public class Main {
     private static void handleClient(Socket clientSocket) {
         try {
             BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+            var out = clientSocket.getOutputStream();
             String line;
             while ((line = reader.readLine()) != null) {
                 if (line.startsWith("*")) {
-                    clientSocket.getOutputStream().write("+PONG\r\n".getBytes());
+                    int numElements = Integer.parseInt(line.substring(1));
+                    String[] elements = new String[numElements];
+                    for (int i = 0; i < numElements; i++) {
+                        reader.readLine(); // skip $<length>
+                        elements[i] = reader.readLine();
+                    }
+
+                    String command = elements[0].toUpperCase();
+                    if (command.equals("PING")) {
+                        out.write("+PONG\r\n".getBytes());
+                    } else if (command.equals("ECHO")) {
+                        String arg = elements[1];
+                        out.write(("$" + arg.length() + "\r\n" + arg + "\r\n").getBytes());
+                    }
                 }
             }
         } catch (IOException e) {
