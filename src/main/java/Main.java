@@ -57,6 +57,7 @@ public class Main {
             BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
             var out = clientSocket.getOutputStream();
             boolean inMulti = false;
+            List<String[]> txQueue = new ArrayList<>();
             String line;
             while ((line = reader.readLine()) != null) {
                 if (line.startsWith("*")) {
@@ -68,6 +69,11 @@ public class Main {
                     }
 
                     String command = elements[0].toUpperCase();
+                    if (inMulti && !command.equals("EXEC") && !command.equals("DISCARD")) {
+                        txQueue.add(elements);
+                        out.write("+QUEUED\r\n".getBytes());
+                        continue;
+                    }
                     if (command.equals("PING")) {
                         out.write("+PONG\r\n".getBytes());
                     } else if (command.equals("ECHO")) {
@@ -464,7 +470,8 @@ public class Main {
                             out.write("-ERR EXEC without MULTI\r\n".getBytes());
                         } else {
                             inMulti = false;
-                            out.write("*0\r\n".getBytes());
+                            out.write(("*" + txQueue.size() + "\r\n").getBytes());
+                            txQueue.clear();
                         }
                     } else if (command.equals("INCR")) {
                         String key = elements[1];
