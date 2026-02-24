@@ -38,8 +38,16 @@ public class XreadCommandHandler implements CommandHandler {
     @Override
     public byte[] execute(String[] args) {
         boolean isBlock = args[1].equalsIgnoreCase("BLOCK");
-        int streamsIdx = isBlock ? 3 : 1;
-        long blockTimeoutMs = isBlock ? Long.parseLong(args[2]) : -1;
+        int streamsIdx;
+        long blockTimeoutMs = -1;
+        if (isBlock) {
+            streamsIdx = 3;
+            blockTimeoutMs = Long.parseLong(args[2]);
+        } else if (args[1].equalsIgnoreCase("COUNT")) {
+            streamsIdx = 3; // XREAD COUNT <n> STREAMS ...
+        } else {
+            streamsIdx = 1; // XREAD STREAMS ...
+        }
         int numStreams = (args.length - streamsIdx - 1) / 2;
 
         String[] keys = new String[numStreams];
@@ -87,10 +95,10 @@ public class XreadCommandHandler implements CommandHandler {
         return sb.toString().getBytes(StandardCharsets.UTF_8);
     }
 
-    @SuppressWarnings("unchecked")
     private byte[] executeBlocking(String[] keys, long[] afterMs, long[] afterSeq, int numStreams, long timeoutMs) {
         List<Integer> nonEmpty = new ArrayList<>();
-        List<StreamEntry>[] immediateResults = new ArrayList[numStreams];
+        @SuppressWarnings("unchecked")
+        List<StreamEntry>[] immediateResults = new List[numStreams];
         for (int s = 0; s < numStreams; s++) {
             immediateResults[s] = store.xreadAfter(keys[s], afterMs[s], afterSeq[s]);
             if (!immediateResults[s].isEmpty()) nonEmpty.add(s);

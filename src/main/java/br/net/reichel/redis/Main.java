@@ -40,7 +40,7 @@ public class Main {
         }
     }
 
-    private static CommandRegistry buildRegistry(DataStore store) {
+    public static CommandRegistry buildRegistry(DataStore store) {
         ReplicationInfo replicationInfo = new StandaloneReplicationInfo("master");
         CommandRegistry registry = new CommandRegistry();
         registry.register("PING",   new PingCommandHandler());
