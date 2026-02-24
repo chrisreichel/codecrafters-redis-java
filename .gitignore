@@ -1,7 +1,6 @@
 *.jar
 target/
 .idea/
-*.md
 agents/
 .claude/
 .env
