@@ -2,6 +2,8 @@ package io.codecrafters.redis;
 
 import io.codecrafters.redis.command.CommandRegistry;
 import io.codecrafters.redis.command.impl.*;
+import io.codecrafters.redis.replication.ReplicationInfo;
+import io.codecrafters.redis.replication.impl.StandaloneReplicationInfo;
 import io.codecrafters.redis.server.RedisServer;
 import io.codecrafters.redis.store.DataStore;
 import io.codecrafters.redis.store.impl.InMemoryDataStore;
@@ -39,6 +41,7 @@ public class Main {
     }
 
     private static CommandRegistry buildRegistry(DataStore store) {
+        ReplicationInfo replicationInfo = new StandaloneReplicationInfo("master");
         CommandRegistry registry = new CommandRegistry();
         registry.register("PING",   new PingCommandHandler());
         registry.register("ECHO",   new EchoCommandHandler());
@@ -55,6 +58,7 @@ public class Main {
         registry.register("XADD",   new XaddCommandHandler(store));
         registry.register("XRANGE", new XrangeCommandHandler(store));
         registry.register("XREAD",  new XreadCommandHandler(store));
+        registry.register("INFO",   new InfoCommandHandler(replicationInfo));
         return registry;
     }
 }
