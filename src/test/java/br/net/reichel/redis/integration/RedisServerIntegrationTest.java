@@ -115,4 +115,39 @@ class RedisServerIntegrationTest {
             assertTrue(check.isBound());
         }
     }
+
+    @Test
+    void activeConnectionCount_tracksOpenAndClosedClients() throws Exception {
+        RedisServer server = buildServer();
+        Thread t = Thread.startVirtualThread(() -> {
+            try { server.start(); } catch (IOException ignored) {}
+        });
+        server.awaitReady();
+
+        RespTestClient client1 = null;
+        RespTestClient client2 = null;
+        try {
+            assertEquals(0, server.getActiveConnectionCount());
+
+            client1 = new RespTestClient("localhost", server.getLocalPort());
+            client1.send("PING");
+            assertEquals(1, server.getActiveConnectionCount());
+
+            client2 = new RespTestClient("localhost", server.getLocalPort());
+            client2.send("PING");
+            assertEquals(2, server.getActiveConnectionCount());
+
+            client1.close();
+            Thread.sleep(100);
+            assertEquals(1, server.getActiveConnectionCount());
+        } finally {
+            if (client2 != null) {
+                client2.close();
+                Thread.sleep(100);
+                assertEquals(0, server.getActiveConnectionCount());
+            }
+            server.stop();
+            t.join(2000);
+        }
+    }
 }

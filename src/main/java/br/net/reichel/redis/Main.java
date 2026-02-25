@@ -84,6 +84,7 @@ public class Main {
         registry.register("XRANGE", new XrangeCommandHandler(store));
         registry.register("XREAD",  new XreadCommandHandler(store));
         registry.register("INFO",   new InfoCommandHandler(replicationInfo));
+        registry.register("CLIENT", new ClientCommandHandler());
         return registry;
     }
 }

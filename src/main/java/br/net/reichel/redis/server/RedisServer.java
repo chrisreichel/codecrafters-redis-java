@@ -5,6 +5,7 @@ import br.net.reichel.redis.command.CommandRegistry;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.CountDownLatch;
 
 /**
@@ -14,6 +15,8 @@ public class RedisServer {
 
     private final int port;
     private final CommandRegistry registry;
+    private final ConnectionRegistry connectionRegistry = new ConnectionRegistry();
+    private final AtomicLong nextConnectionId = new AtomicLong(1);
     private volatile ServerSocket serverSocket;
     private final CountDownLatch readyLatch = new CountDownLatch(1);
 
@@ -40,7 +43,14 @@ public class RedisServer {
         try {
             while (!serverSocket.isClosed()) {
                 Socket clientSocket = serverSocket.accept();
-                Thread.startVirtualThread(new ClientHandler(clientSocket, registry));
+                long connectionId = nextConnectionId.getAndIncrement();
+                ConnectionInfo connectionInfo = new ConnectionInfo(
+                        connectionId,
+                        clientSocket.getRemoteSocketAddress(),
+                        System.currentTimeMillis()
+                );
+                connectionRegistry.register(connectionInfo);
+                Thread.startVirtualThread(new ClientHandler(clientSocket, registry, connectionInfo, connectionRegistry));
             }
         } catch (IOException e) {
             if (!serverSocket.isClosed()) throw e;
@@ -66,6 +76,15 @@ public class RedisServer {
      */
     public int getLocalPort() {
         return (serverSocket != null) ? serverSocket.getLocalPort() : -1;
+    }
+
+    /**
+     * Returns active connection count.
+     *
+     * @return number of active client connections
+     */
+    public int getActiveConnectionCount() {
+        return connectionRegistry.size();
     }
 
     /**

@@ -113,4 +113,27 @@ class ClientHandlerIntegrationTest {
             Thread.currentThread().interrupt();
         }
     }
+
+    @Test
+    void dispatch_clientId_returnsStableIntegerPerConnection() throws IOException {
+        try (RespTestClient client = fixture.newClient()) {
+            String first = client.send("CLIENT", "ID");
+            String second = client.send("CLIENT", "ID");
+            assertTrue(first.startsWith(":"));
+            assertEquals(first, second);
+        }
+    }
+
+    @Test
+    void dispatch_clientId_returnsDifferentIdsForDifferentConnections() throws IOException {
+        String firstId;
+        try (RespTestClient client1 = fixture.newClient()) {
+            firstId = client1.send("CLIENT", "ID");
+        }
+
+        try (RespTestClient client2 = fixture.newClient()) {
+            String secondId = client2.send("CLIENT", "ID");
+            assertNotEquals(firstId, secondId);
+        }
+    }
 }

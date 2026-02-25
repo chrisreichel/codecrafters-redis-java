@@ -1,5 +1,7 @@
 package br.net.reichel.redis.server;
 
+import br.net.reichel.redis.command.ConnectionAwareCommandHandler;
+import br.net.reichel.redis.command.CommandHandler;
 import br.net.reichel.redis.command.CommandRegistry;
 import br.net.reichel.redis.protocol.RespEncoder;
 import br.net.reichel.redis.protocol.RespParser;
@@ -21,16 +23,27 @@ public class ClientHandler implements Runnable {
 
     private final Socket socket;
     private final CommandRegistry registry;
+    private final ConnectionInfo connection;
+    private final ConnectionRegistry connectionRegistry;
 
     /**
      * Creates a handler for the given client socket.
      *
-     * @param socket   the client socket
-     * @param registry the command registry to dispatch commands to
+     * @param socket             the client socket
+     * @param registry           the command registry to dispatch commands to
+     * @param connection         the current connection metadata
+     * @param connectionRegistry registry of active connections
      */
-    public ClientHandler(Socket socket, CommandRegistry registry) {
+    public ClientHandler(
+            Socket socket,
+            CommandRegistry registry,
+            ConnectionInfo connection,
+            ConnectionRegistry connectionRegistry
+    ) {
         this.socket = socket;
         this.registry = registry;
+        this.connection = connection;
+        this.connectionRegistry = connectionRegistry;
     }
 
     /**
@@ -60,7 +73,7 @@ public class ClientHandler implements Runnable {
                     case "EXEC"    -> handleExec(tx);
                     case "DISCARD" -> handleDiscard(tx);
                     default -> registry.resolve(command)
-                            .map(h -> h.execute(args))
+                            .map(h -> executeHandler(h, args))
                             .orElse(RespEncoder.error("ERR unknown command '" + command + "'"));
                 };
 
@@ -69,12 +82,20 @@ public class ClientHandler implements Runnable {
         } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
         } finally {
+            connectionRegistry.unregister(connection.id());
             try {
                 socket.close();
             } catch (IOException e) {
                 System.out.println("IOException: " + e.getMessage());
             }
         }
+    }
+
+    private byte[] executeHandler(CommandHandler handler, String[] args) {
+        if (handler instanceof ConnectionAwareCommandHandler connectionAware) {
+            return connectionAware.execute(args, connection);
+        }
+        return handler.execute(args);
     }
 
     private byte[] handleMulti(TransactionContext tx) {

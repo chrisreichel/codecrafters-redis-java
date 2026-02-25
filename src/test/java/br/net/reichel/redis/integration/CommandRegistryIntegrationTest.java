@@ -17,12 +17,12 @@ import static org.junit.jupiter.api.Assertions.*;
 class CommandRegistryIntegrationTest {
 
     @Test
-    void buildRegistry_registersAllSixteenCommands() {
+    void buildRegistry_registersAllSeventeenCommands() {
         CommandRegistry registry = Main.buildRegistry(new InMemoryDataStore(), new br.net.reichel.redis.replication.impl.StandaloneReplicationInfo("master"));
 
         String[] commands = {"PING", "ECHO", "SET", "GET", "INCR", "TYPE",
                 "RPUSH", "LPUSH", "LLEN", "LRANGE", "LPOP", "BLPOP",
-                "XADD", "XRANGE", "XREAD", "INFO"};
+                "XADD", "XRANGE", "XREAD", "INFO", "CLIENT"};
 
         for (String cmd : commands) {
             assertTrue(registry.resolve(cmd).isPresent(), "Expected handler for: " + cmd);
