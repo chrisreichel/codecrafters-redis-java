@@ -35,6 +35,20 @@ class InfoCommandHandlerTest {
             }
 
             @Override
+            public String getMasterHost() {
+                return null;
+            }
+
+            @Override
+            public int getMasterPort() {
+                return -1;
+            }
+
+            @Override
+            public void setMaster(String host, int port) {
+            }
+
+            @Override
             public String toInfoSection() {
                 return infoSection;
             }

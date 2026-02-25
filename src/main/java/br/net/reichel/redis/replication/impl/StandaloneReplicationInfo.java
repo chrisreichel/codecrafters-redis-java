@@ -10,6 +10,8 @@ public class StandaloneReplicationInfo implements ReplicationInfo {
     private final String role;
     private final String masterReplId;
     private final long masterReplOffset;
+    private String masterHost;
+    private int masterPort = -1;
 
     /**
      * Creates replication info with the given role.
@@ -36,6 +38,22 @@ public class StandaloneReplicationInfo implements ReplicationInfo {
     @Override
     public long getMasterReplOffset() {
         return masterReplOffset;
+    }
+
+    @Override
+    public String getMasterHost() {
+        return masterHost;
+    }
+
+    @Override
+    public int getMasterPort() {
+        return masterPort;
+    }
+
+    @Override
+    public void setMaster(String host, int port) {
+        this.masterHost = host;
+        this.masterPort = port;
     }
 
     /**

@@ -25,17 +25,39 @@ public class Main {
 
         int port = 6379;
         String role = "master";
+        String masterHost = null;
+        int masterPort = -1;
+
         for (int i = 0; i < args.length; i++) {
             if (args[i].equals("--port") && i + 1 < args.length) {
                 port = Integer.parseInt(args[++i]);
             } else if (args[i].equals("--replicaof") && i + 1 < args.length) {
                 role = "slave";
-                i++; // Skip the master host/port argument
+                String[] masterParts = args[++i].split(" ");
+                if (masterParts.length == 2) {
+                    masterHost = masterParts[0];
+                    masterPort = Integer.parseInt(masterParts[1]);
+                }
             }
         }
 
         DataStore store = new InMemoryDataStore();
-        CommandRegistry registry = buildRegistry(store, role);
+        ReplicationInfo replicationInfo = new StandaloneReplicationInfo(role);
+        if (role.equals("slave")) {
+            replicationInfo.setMaster(masterHost, masterPort);
+        }
+
+        CommandRegistry registry = buildRegistry(store, replicationInfo);
+
+        if (role.equals("slave")) {
+            br.net.reichel.redis.replication.ReplicationService replicationService =
+                    new br.net.reichel.redis.replication.impl.ReplicationServiceImpl(replicationInfo);
+            try {
+                replicationService.initiateHandshake();
+            } catch (IOException e) {
+                System.out.println("Handshake failed: " + e.getMessage());
+            }
+        }
 
         try {
             new RedisServer(port, registry).start();
@@ -44,8 +66,7 @@ public class Main {
         }
     }
 
-    public static CommandRegistry buildRegistry(DataStore store, String role) {
-        ReplicationInfo replicationInfo = new StandaloneReplicationInfo(role);
+    public static CommandRegistry buildRegistry(DataStore store, ReplicationInfo replicationInfo) {
         CommandRegistry registry = new CommandRegistry();
         registry.register("PING",   new PingCommandHandler());
         registry.register("ECHO",   new EchoCommandHandler());

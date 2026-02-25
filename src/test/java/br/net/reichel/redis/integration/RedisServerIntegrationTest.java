@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class RedisServerIntegrationTest {
 
     private RedisServer buildServer() {
-        CommandRegistry registry = Main.buildRegistry(new InMemoryDataStore(), "master");
+        CommandRegistry registry = Main.buildRegistry(new InMemoryDataStore(), new br.net.reichel.redis.replication.impl.StandaloneReplicationInfo("master"));
         return new RedisServer(0, registry);
     }
 

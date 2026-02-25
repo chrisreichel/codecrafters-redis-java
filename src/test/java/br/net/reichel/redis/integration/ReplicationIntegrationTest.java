@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ReplicationIntegrationTest {
 
     private RedisServer startServer(String role) throws IOException, InterruptedException {
-        CommandRegistry registry = Main.buildRegistry(new InMemoryDataStore(), role);
+        CommandRegistry registry = Main.buildRegistry(new InMemoryDataStore(), new br.net.reichel.redis.replication.impl.StandaloneReplicationInfo(role));
         RedisServer server = new RedisServer(0, registry);
         Thread t = Thread.startVirtualThread(() -> {
             try {
