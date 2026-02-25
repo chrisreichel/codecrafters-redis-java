@@ -34,3 +34,8 @@
 ## Configuration & Runtime Notes
 - The artifact name `codecrafters-redis` in `pom.xml` should not be changed; build scripts depend on it.
 - The server default port is `6379`; keep socket reuse in mind for fast restarts during tests.
+
+## Project constraints
+- Do not read the content of the docs folder, unless I explicit ask you to do it.
+- Ignore the CLAUDE.md, github.key and GEMINI.md files.
+- Ignore the target folder.

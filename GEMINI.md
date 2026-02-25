@@ -68,3 +68,9 @@ Every time you implement something, run the mvn clean test to make sure the code
 - **Artifact Name**: The artifact name `codecrafters-redis` in `pom.xml` should not be changed as the build scripts depend on it.
 - **Port**: The server defaults to port `6379`.
 - **Socket Reuse**: The `ServerSocket` should have `setReuseAddress(true)` to avoid "Address already in use" errors during frequent tester restarts.
+
+## Project constraints
+- Do not read the content of the docs folder, unless I explicit ask you to do it.
+- Ignore the AGENTS.md, github.key and CLAUDE.md files.
+- Ignore the target folder.
+

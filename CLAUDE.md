@@ -58,3 +58,11 @@ Every time you implement something, run the mvn clean test to make sure the code
 - Uses `--enable-preview` flag for Java preview features
 - `SO_REUSEADDR` is set on the server socket to handle rapid restarts during testing
 - The CodeCrafters tester restarts the program frequently, so socket reuse is important
+
+## Project constraints
+- Do not read the content of the docs folder, unless I explicit ask you to do it.
+- Ignore the AGENTS.md, github.key and GEMINI.md files.
+- Ignore the target folder.
+
+
+
