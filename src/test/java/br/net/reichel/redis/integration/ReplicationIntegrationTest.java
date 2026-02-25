@@ -7,7 +7,6 @@ import br.net.reichel.redis.store.impl.InMemoryDataStore;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -32,6 +31,8 @@ class ReplicationIntegrationTest {
         try (RespTestClient client = new RespTestClient("localhost", server.getLocalPort())) {
             String response = client.send("INFO", "replication");
             assertTrue(response.contains("role:master"), "Expected role:master in response but got: " + response);
+            assertTrue(response.contains("master_replid:8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb"), "Missing master_replid");
+            assertTrue(response.contains("master_repl_offset:0"), "Missing master_repl_offset");
         } finally {
             server.stop();
         }
@@ -43,6 +44,8 @@ class ReplicationIntegrationTest {
         try (RespTestClient client = new RespTestClient("localhost", server.getLocalPort())) {
             String response = client.send("INFO", "replication");
             assertTrue(response.contains("role:slave"), "Expected role:slave in response but got: " + response);
+            assertTrue(response.contains("master_replid:8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb"), "Missing master_replid");
+            assertTrue(response.contains("master_repl_offset:0"), "Missing master_repl_offset");
         } finally {
             server.stop();
         }

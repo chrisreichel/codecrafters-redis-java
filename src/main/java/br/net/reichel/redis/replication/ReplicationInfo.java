@@ -13,6 +13,20 @@ public interface ReplicationInfo {
     String getRole();
 
     /**
+     * Returns the master replication ID.
+     *
+     * @return the replication ID
+     */
+    String getMasterReplId();
+
+    /**
+     * Returns the master replication offset.
+     *
+     * @return the replication offset
+     */
+    long getMasterReplOffset();
+
+    /**
      * Returns a formatted key:value block for embedding in an INFO response.
      *
      * @return the formatted replication section text

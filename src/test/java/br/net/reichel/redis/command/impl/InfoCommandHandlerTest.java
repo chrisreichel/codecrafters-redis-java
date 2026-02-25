@@ -25,6 +25,16 @@ class InfoCommandHandlerTest {
             }
 
             @Override
+            public String getMasterReplId() {
+                return "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb";
+            }
+
+            @Override
+            public long getMasterReplOffset() {
+                return 0;
+            }
+
+            @Override
             public String toInfoSection() {
                 return infoSection;
             }

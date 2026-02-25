@@ -1,8 +1,8 @@
 package br.net.reichel.redis.integration;
 
-import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
@@ -13,7 +13,7 @@ import java.nio.charset.StandardCharsets;
 public class RespTestClient implements AutoCloseable {
 
     private final Socket socket;
-    private final BufferedReader reader;
+    private final InputStream in;
     private final OutputStream out;
 
     /**
@@ -25,7 +25,7 @@ public class RespTestClient implements AutoCloseable {
      */
     public RespTestClient(String host, int port) throws IOException {
         this.socket = new Socket(host, port);
-        this.reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+        this.in = socket.getInputStream();
         this.out = socket.getOutputStream();
     }
 
@@ -67,7 +67,7 @@ public class RespTestClient implements AutoCloseable {
      * @throws IOException if an I/O error occurs
      */
     public String readResponse() throws IOException {
-        String line = reader.readLine();
+        String line = readLine();
         if (line == null) {
             return null;
         }
@@ -84,7 +84,18 @@ public class RespTestClient implements AutoCloseable {
                 if (length == -1) {
                     yield "$-1\r\n";
                 }
-                String bulk = reader.readLine();
+                byte[] bytes = new byte[length];
+                int read = 0;
+                while (read < length) {
+                    int r = in.read(bytes, read, length - read);
+                    if (r == -1) throw new IOException("Unexpected EOF while reading bulk string body");
+                    read += r;
+                }
+                // Read the trailing \r\n
+                if (in.read() != '\r' || in.read() != '\n') {
+                    throw new IOException("Expected \\r\\n after bulk string body");
+                }
+                String bulk = new String(bytes, StandardCharsets.UTF_8);
                 yield "$" + length + "\r\n" + bulk + "\r\n";
             }
             case '*' -> {
@@ -100,6 +111,27 @@ public class RespTestClient implements AutoCloseable {
             }
             default -> line + "\r\n";
         };
+    }
+
+    private String readLine() throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        int b;
+        while ((b = in.read()) != -1) {
+            if (b == '\r') {
+                int next = in.read();
+                if (next == '\n') {
+                    break;
+                }
+                baos.write(b);
+                baos.write(next);
+            } else {
+                baos.write(b);
+            }
+        }
+        if (b == -1 && baos.size() == 0) {
+            return null;
+        }
+        return baos.toString(StandardCharsets.UTF_8);
     }
 
     /**

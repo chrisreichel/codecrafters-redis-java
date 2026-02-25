@@ -8,6 +8,8 @@ import br.net.reichel.redis.replication.ReplicationInfo;
 public class StandaloneReplicationInfo implements ReplicationInfo {
 
     private final String role;
+    private final String masterReplId;
+    private final long masterReplOffset;
 
     /**
      * Creates replication info with the given role.
@@ -16,12 +18,24 @@ public class StandaloneReplicationInfo implements ReplicationInfo {
      */
     public StandaloneReplicationInfo(String role) {
         this.role = role;
+        this.masterReplId = "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb";
+        this.masterReplOffset = 0;
     }
 
     /** @return the replication role */
     @Override
     public String getRole() {
         return role;
+    }
+
+    @Override
+    public String getMasterReplId() {
+        return masterReplId;
+    }
+
+    @Override
+    public long getMasterReplOffset() {
+        return masterReplOffset;
     }
 
     /**
@@ -31,6 +45,8 @@ public class StandaloneReplicationInfo implements ReplicationInfo {
      */
     @Override
     public String toInfoSection() {
-        return "role:" + role;
+        return "role:" + role + "\r\n" +
+               "master_replid:" + masterReplId + "\r\n" +
+               "master_repl_offset:" + masterReplOffset;
     }
 }

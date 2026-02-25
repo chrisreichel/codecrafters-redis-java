@@ -45,7 +45,9 @@ class StandaloneReplicationInfoTest {
         String section = info.toInfoSection();
 
         // Assert
-        assertEquals("role:master", section);
+        assertTrue(section.contains("role:master"));
+        assertTrue(section.contains("master_replid:8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb"));
+        assertTrue(section.contains("master_repl_offset:0"));
     }
 
     @Test
@@ -57,7 +59,21 @@ class StandaloneReplicationInfoTest {
         String section = info.toInfoSection();
 
         // Assert
-        assertEquals("role:slave", section);
+        assertTrue(section.contains("role:slave"));
+        assertTrue(section.contains("master_replid:8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb"));
+        assertTrue(section.contains("master_repl_offset:0"));
+    }
+
+    @Test
+    void getMasterReplId_returnsHardcodedValue() {
+        StandaloneReplicationInfo info = new StandaloneReplicationInfo("master");
+        assertEquals("8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb", info.getMasterReplId());
+    }
+
+    @Test
+    void getMasterReplOffset_returnsZero() {
+        StandaloneReplicationInfo info = new StandaloneReplicationInfo("master");
+        assertEquals(0, info.getMasterReplOffset());
     }
 
     @Test
