@@ -18,7 +18,7 @@ class CommandRegistryIntegrationTest {
 
     @Test
     void buildRegistry_registersAllSixteenCommands() {
-        CommandRegistry registry = Main.buildRegistry(new InMemoryDataStore());
+        CommandRegistry registry = Main.buildRegistry(new InMemoryDataStore(), "master");
 
         String[] commands = {"PING", "ECHO", "SET", "GET", "INCR", "TYPE",
                 "RPUSH", "LPUSH", "LLEN", "LRANGE", "LPOP", "BLPOP",
@@ -31,7 +31,7 @@ class CommandRegistryIntegrationTest {
 
     @Test
     void resolve_isCaseInsensitive() {
-        CommandRegistry registry = Main.buildRegistry(new InMemoryDataStore());
+        CommandRegistry registry = Main.buildRegistry(new InMemoryDataStore(), "master");
 
         Optional<CommandHandler> lower = registry.resolve("ping");
         Optional<CommandHandler> upper = registry.resolve("PING");
@@ -43,7 +43,7 @@ class CommandRegistryIntegrationTest {
 
     @Test
     void resolve_unknownCommand_returnsEmpty() {
-        CommandRegistry registry = Main.buildRegistry(new InMemoryDataStore());
+        CommandRegistry registry = Main.buildRegistry(new InMemoryDataStore(), "master");
 
         Optional<CommandHandler> result = registry.resolve("FOOBAR");
 

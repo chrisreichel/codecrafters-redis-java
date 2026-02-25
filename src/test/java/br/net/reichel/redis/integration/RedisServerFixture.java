@@ -25,7 +25,7 @@ public class RedisServerFixture {
      */
     public RedisServerFixture() throws IOException, InterruptedException {
         InMemoryDataStore store = new InMemoryDataStore();
-        CommandRegistry registry = Main.buildRegistry(store);
+        CommandRegistry registry = Main.buildRegistry(store, "master");
         this.server = new RedisServer(0, registry);
 
         serverThread = Thread.startVirtualThread(() -> {
