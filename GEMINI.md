@@ -9,7 +9,8 @@ This is a Java implementation of a Redis clone, built as part of the CodeCrafter
 - **Redis Protocol**: Implements the Redis Serialization Protocol (RESP) to handle client connections and commands.
 
 ## Building and Running
-The project includes scripts to simplify building and running both locally and in the CodeCrafters environment.
+- The project includes scripts to simplify building and running both locally and in the CodeCrafters environment.
+- Everytime you run mvn, make sure to run with -q, just supress the flag for troubleshooting
 
 ### Key Commands
 - **Build and Run Locally**:

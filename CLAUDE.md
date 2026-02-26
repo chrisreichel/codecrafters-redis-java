@@ -53,13 +53,16 @@ Every time you implement something, run the mvn clean test to make sure the code
 - **Build system**: Maven with Java 25 and preview features enabled
 - **Default port**: 6379 (standard Redis port)
 
+
 ## Key Technical Details
 
 - Uses `--enable-preview` flag for Java preview features
 - `SO_REUSEADDR` is set on the server socket to handle rapid restarts during testing
 - The CodeCrafters tester restarts the program frequently, so socket reuse is important
+- Everytime you run mvn, make sure to run with -q, just supress the flag for troubleshooting
 
 ## Project constraints
+
 - Do not read the content of the docs folder, unless I explicit ask you to do it.
 - Ignore the AGENTS.md, github.key and GEMINI.md files.
 - Ignore the target folder.

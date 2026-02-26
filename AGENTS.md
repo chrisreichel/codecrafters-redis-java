@@ -13,6 +13,7 @@
 - `java --enable-preview -jar /tmp/codecrafters-build-redis-java/codecrafters-redis.jar`: Run the compiled JAR.
 - `codecrafters test`: Run the CodeCrafters test suite.
 - `codecrafters submit`: Submit the current solution.
+- Everytime you run mvn, make sure to run with -q, just supress the flag for troubleshooting
 
 ## Coding Style & Naming Conventions
 - Java 25 with `--enable-preview` is required (configured in `pom.xml`).
